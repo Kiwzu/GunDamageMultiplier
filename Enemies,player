@@ -1,0 +1,94 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local Window = Fluent:CreateWindow({
+    Title = "Fluent " .. Fluent.Version,
+    SubTitle = "by dawid",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local Options = Fluent.Options
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ShootGunEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/ShootGunEvent")
+local Players = game:GetService("Players")
+
+-- Flags to control loops
+local isEnemyDamageActive = false
+local isPlayerDamageActive = false
+
+-- Function to shoot at enemies
+local function shootAtEnemies()
+    while isEnemyDamageActive do
+        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+            if enemy:IsA("Model") and enemy:FindFirstChild("HumanoidRootPart") then
+                local args = {
+                    [1] = enemy.HumanoidRootPart.Position,
+                    [2] = { enemy.HumanoidRootPart }
+                }
+                ShootGunEvent:FireServer(unpack(args))
+            end
+        end
+        wait(0.05)
+    end
+end
+
+-- Function to shoot at players
+local function shootAtPlayers()
+    while isPlayerDamageActive do
+        for _, player in pairs(Players:GetPlayers()) do
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local args = {
+                    [1] = character.HumanoidRootPart.Position,
+                    [2] = { character.HumanoidRootPart }
+                }
+                ShootGunEvent:FireServer(unpack(args))
+            end
+        end
+        wait(0.05)
+    end
+end
+
+-- Add "Gun Damage (Enemies)" toggle
+local EnemyDamageToggle = Tabs.Main:AddToggle("EnemyDamageToggle", { Title = "Gun Damage (Enemies)", Default = false })
+EnemyDamageToggle:OnChanged(function()
+    isEnemyDamageActive = EnemyDamageToggle.Value
+    if isEnemyDamageActive then
+        coroutine.wrap(shootAtEnemies)()
+    end
+end)
+
+-- Add "Gun Damage (Players)" toggle
+local PlayerDamageToggle = Tabs.Main:AddToggle("PlayerDamageToggle", { Title = "Gun Damage (Players)", Default = false })
+PlayerDamageToggle:OnChanged(function()
+    isPlayerDamageActive = PlayerDamageToggle.Value
+    if isPlayerDamageActive then
+        coroutine.wrap(shootAtPlayers)()
+    end
+end)
+
+-- Default values for toggles
+Options.EnemyDamageToggle:SetValue(false)
+Options.PlayerDamageToggle:SetValue(false)
+
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/specific-game")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:LoadAutoloadConfig()
